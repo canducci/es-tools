@@ -33,6 +33,20 @@
     </div>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
     <script>navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });</script>
+    <script>
+        window.util = {
+            downloadFile: async (fileName, contentStreamReference, type) => {
+                const arrayBuffer = await contentStreamReference.arrayBuffer();
+                const blob = new Blob([arrayBuffer], { type: type });
+                const url = URL.createObjectURL(blob);
+                const anchorElement = document.createElement('a');
+                anchorElement.href = url;
+                anchorElement.download = fileName ?? '';
+                anchorElement.click();
+                anchorElement.remove();
+                URL.revokeObjectURL(url);
+            }
+    </script>
 </body>
 
 </html>
