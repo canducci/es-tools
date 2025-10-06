@@ -1,0 +1,271 @@
+﻿@page "/earm"
+@using Estools
+@using Estools.Library
+@using static Estools.Library.Dadger
+@using static Estools.Hidro
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<h2>Earm</h2>
+
+<button class="btn btn-primary" @onclick="OpenFolder">Escolher deck de Entrada</button>
+
+<h4>Earm %</h4>
+<table class="table">
+	<thead>
+		<tr>
+			<th>Sis</th>
+			<th>Valor</th>
+			<th>Meta</th>
+		</tr>
+	</thead>
+	<tbody>
+		@for (int i = 0; i < model.Earm.Length; i++)
+		{
+			var j = i;
+			<tr>
+				<td>@(i + 1)</td>
+				<td>@model.Earm[i]</td>
+				<td>
+					<input type="text"
+						   value="@(model.MetaReservatorio[j].ToString())"
+						   @onchange="@(e => MetaChange(e, j))" />
+
+				</td>
+			</tr>
+		}
+	</tbody>
+</table>
+
+<button class="btn btn-primary" @onclick="Run">Atingir Meta</button>
+
+<h4>Restrições</h4>
+<button class="btn btn-primary">Alterar (dadger.rv)</button>
+<table class="table">
+	<thead>
+		<tr>
+			<th>Id</th>
+			<th>Vol Min</th>
+			<th>Vol Max</th>
+			<th></th>
+		</tr>
+	</thead>
+	<tbody>
+		@foreach (var r in model.Restricoes)
+		{
+			<tr>
+				<td>@r.Id</td>
+				<td>@r.VolMin</td>
+				<td>@r.VolMax</td>
+				<td>@(r.Relative ? "%" : "")</td>
+			</tr>
+		}
+
+	</tbody>
+</table>
+
+<h4>Alterações Cad.</h4>
+<button class="btn btn-primary">Alterar (modif.dat)</button>
+<table class="table">
+	<thead>
+		<tr>
+			<th>Id</th>
+			<th>Tipo</th>
+			<th>Valor</th>
+			<th></th>
+		</tr>
+	</thead>
+	<tbody>
+		@foreach (var r in model.Alteracoes)
+		{
+			<tr>
+				<td>@r.Id</td>
+				<td>@r.Tipo</td>
+				<td>@r.Valor</td>
+			</tr>
+		}
+	</tbody>
+</table>
+
+
+@code {
+	HidroModel model = new HidroModel();
+
+	DotNetObjectReference<Earm> objRef = default!;
+	IJSObjectReference? jsDirHnd = default;
+	IEnumerable<string> files = Enumerable.Empty<string>();
+
+
+	HidrDat? hidrDat = default;
+	Dadger? dadger = default;
+	ConfigH? configH = default;
+
+	protected override void OnInitialized()
+	{
+		objRef = DotNetObjectReference.Create(this);
+	}
+
+	private async Task OpenFolder()
+	{
+		// var dirHnd = await JS.InvokeAsync<IJSObjectReference>("func.openFolder");
+		await JS.InvokeVoidAsync("util.listFolder", objRef);
+	}
+
+	private async Task<Stream> ReadFiles(string filename)
+	{
+		var dataReference =
+			await JS.InvokeAsync<IJSStreamReference>("util.openFile", filename, jsDirHnd);
+		var dataReferenceStream =
+			await dataReference.OpenReadStreamAsync(maxAllowedSize: 10_000_000);
+		return dataReferenceStream;
+	}
+
+	private async Task<string> ReadFileAsText(string filename)
+	{
+		using var stream = await ReadFiles(filename);
+		using var reader = new StreamReader(stream);
+		return await reader.ReadToEndAsync();
+	}
+
+
+	void MetaChange(ChangeEventArgs e, int index)
+	{
+		Console.WriteLine(e);
+		Console.WriteLine(e.Value);
+		if (double.TryParse(e.Value?.ToString(), out var v))
+		{
+			model.MetaReservatorio[index] = v;
+		}
+		else
+		{
+			model.MetaReservatorio[index] = model.Earm[index];
+		}
+		StateHasChanged();
+	}
+
+	private async Task Run()
+	{
+		if (configH is null) return;
+
+		Console.WriteLine("model.MetaReservatorio[0]: " + model.MetaReservatorio[0]);
+
+		Hidro.Reservatorio(model, configH);
+
+		using var s = configH.baseDoc.GetFileStream();
+		using var cs = new DotNetStreamReference(s);
+
+		await JS.InvokeVoidAsync("util.downloadFile", model.DocPath, cs, "text/plain");
+
+		model.Earm = configH?.GetEarmPercent() ?? [];
+
+		Console.WriteLine("model.Earm[0]: " + model.Earm[0]);
+		StateHasChanged();
+
+	}
+
+
+	public async ValueTask DisposeAsync()
+	{
+		objRef?.Dispose();
+		_ = jsDirHnd?.DisposeAsync();
+		await Task.CompletedTask;
+	}
+
+
+	[JSInvokable]
+	public async Task ReceiveFolderHandle(string[] fileNames, IJSObjectReference jsDirHnd)
+	{
+		Console.WriteLine("ReceiveFolderHandle");
+
+		files = [.. fileNames];
+
+		this.jsDirHnd = jsDirHnd;
+
+		var hidrFile = files.FirstOrDefault(f => f.Equals("hidr.dat", StringComparison.OrdinalIgnoreCase));
+		if (hidrFile is not null)
+		{
+			using var hidrStream = await ReadFiles(hidrFile);
+			using var ms = new MemoryStream();
+			await hidrStream.CopyToAsync(ms);
+
+			hidrDat = new HidrDat(ms.ToArray());
+		}
+
+		var dadgerFile = files.FirstOrDefault(f => f.StartsWith("dadger.", StringComparison.OrdinalIgnoreCase));
+		var confhdFile = files.FirstOrDefault(f => f.StartsWith("confhd", StringComparison.OrdinalIgnoreCase));
+		var modifFile = files.FirstOrDefault(f => f.Equals("modif.dat", StringComparison.OrdinalIgnoreCase));
+		var dgerFile = files.FirstOrDefault(f => f.Equals("dger.dat", StringComparison.OrdinalIgnoreCase));
+
+		//DECOMP
+		if (dadgerFile is not null && hidrDat is not null)
+		{
+			dadger = BaseDocument.Create<Dadger>(await ReadFileAsText(dadgerFile));
+
+			model.DocPath = dadgerFile;
+
+			configH = new ConfigH(dadger, hidrDat!);
+			model.Restricoes = CarregaRestricoes(dadger);
+			configH.CarregarRestricoes(model.Restricoes.Select(x => new Tuple<int, double, double, bool>(x.Id, x.VolMin, x.VolMax, x.Relative)));
+		}
+		//NEWAVE
+		else if (confhdFile is not null && modifFile is not null && dgerFile is not null && hidrDat is not null)
+		{
+			model.DocPath = confhdFile;
+
+			var confhd = BaseDocument.Create<ConfhdDat>(await ReadFileAsText(confhdFile));
+			var modif = BaseDocument.Create<ModifDatNw>(await ReadFileAsText(modifFile));
+			var dger = BaseDocument.Create<DgerDat>(await ReadFileAsText(dgerFile));
+
+			configH = new ConfigH(confhd, hidrDat, modif, dger);
+		}
+
+		model.Earm = configH?.GetEarmPercent(false) ?? [];
+		model.MetaReservatorio = [.. model.Earm];
+
+		model.Alteracoes = configH?.Usinas.Where(x => x.CanalFugaMedChanged).Select(x => new Hidro.Alteracao
+		{
+			Id = x.Cod,
+			Tipo = "CFUGA",
+			Valor = x.CanalFugaMed
+		}) ?? [];
+
+		model.Data = configH?.Date ?? default;
+
+		StateHasChanged();
+		await Task.CompletedTask;
+	}
+
+	private IEnumerable<Restricao> CarregaRestricoes(Dadger dadger)
+	{
+		var curva = new List<Restricao>();
+		//manter restricoes de volume para restringir variacao no atingir meta de armazenamento
+		curva.AddRange(dadger.BlocoRhv.RhvGrouped
+			.Where(x => x.Value.Any(y => (y is CvLine) && y[5].Equals("VARM")))
+			.Select(x => new Restricao(
+				x.Value.First(y => (y is CvLine))[3],
+				(x.Value.Any(y => (y is LvLine) && y[2] == 1 && (y[3] is double)) ? x.Value.First(y => (y is LvLine) && y[2] == 1 && (y[3] is double))[3] : 0) / configH.usinas[x.Value.First(y => (y is CvLine))[3]].VolUtil * 100,
+				(x.Value.Any(y => (y is LvLine) && y[2] == 1 && (y[4] is double)) ? x.Value.First(y => (y is LvLine) && y[2] == 1 && (y[4] is double))[4] : configH.usinas[x.Value.First(y => (y is CvLine))[3]].VolUtil) / configH.usinas[x.Value.First(y => (y is CvLine))[3]].VolUtil * 100,
+				true
+			)).ToList());
+
+		curva.AddRange(dadger.BlocoVe.Select(x => new Restricao(x[1], 0,
+			(x[2]), //* configH.usinas[x[1]].VolUtil,
+			true
+			)).ToList());
+
+		return curva.GroupBy(x => x.Id).Select(x => new Restricao(x.Key, x.Min(y => y.VolMin), x.Max(y => y.VolMax), true)).OrderBy(x => x.Id);
+	}
+
+
+	class HidroModel : IHidro
+	{
+		public string DocPath { get; set; } = "";
+		public double[] Earm { get; set; } = [];
+		public double[] MetaReservatorio { get; set; } = [];
+		public double[] EarmMax { get; set; } = [];
+		public IEnumerable<Hidro.Restricao> Restricoes { get; set; } = [];
+		public IEnumerable<Hidro.Alteracao> Alteracoes { get; set; } = [];
+		public DateTime Data { get; set; }
+	}
+
+}
