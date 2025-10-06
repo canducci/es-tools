@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="estools.app/estools.app.csproj" />
+  <Project Path="estools/estools.csproj" Id="e0b3a6c9-6083-419d-a029-e84828b3a085" />
 </Solution>

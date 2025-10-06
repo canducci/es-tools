@@ -33,6 +33,54 @@
     </div>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
     <script>navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });</script>
+    <script>
+        window.util = {
+            downloadFile: async (fileName, contentStreamReference, type) => {
+                const arrayBuffer = await contentStreamReference.arrayBuffer();
+                const blob = new Blob([arrayBuffer], { type: type });
+                const url = URL.createObjectURL(blob);
+                const anchorElement = document.createElement('a');
+                anchorElement.href = url;
+                anchorElement.download = fileName ?? '';
+                anchorElement.click();
+                anchorElement.remove();
+                URL.revokeObjectURL(url);
+            },
+            listFolder: async (dotNetObjectRef) => {
+                try {
+
+                    var dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+
+                    let names = [];
+
+                    for await (const entry of dirHandle.values()) {
+                        names.push(entry.name);
+                    }
+                    await dotNetObjectRef.invokeMethodAsync("ReceiveFolderHandle", names, DotNet.createJSObjectReference(dirHandle));
+                }
+                catch (e) {
+                    console.warn(e.message);
+                    console.debug(e);
+                }
+            },
+            openFolder: async () => {
+                const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+                for await (const entry of dirHandle.values()) {
+                    console.log(entry.kind, entry.name);
+                }
+                return dirHandle;
+            },
+            openFile: async (fileName, dirHandle) => {
+                const fileHandle = await dirHandle.getFileHandle(fileName, { create: false });
+
+                const file = await fileHandle.getFile();
+
+                console.log(file.name);
+
+                return await file.arrayBuffer();
+            }
+        }
+    </script>
 </body>
 
 </html>
