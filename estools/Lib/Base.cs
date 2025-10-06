@@ -97,7 +97,6 @@ public abstract class BaseDocument : ICloneable
 
     public virtual void SaveToFile(string? filePath = null, bool createBackup = false)
     {
-
         filePath = filePath ?? File;
 
         if (createBackup && System.IO.File.Exists(filePath))
@@ -106,11 +105,23 @@ public abstract class BaseDocument : ICloneable
             System.IO.File.Copy(filePath, bkp);
         }
 
-
         var text = ToText();
         System.IO.File.WriteAllText(filePath, text, Encoding.Default);
         //SaveToFile(File);           
     }
+
+    public virtual Stream GetFileStream()
+    {
+        var text = ToText();
+
+        var stream = new MemoryStream(Encoding.Default.GetBytes(text))
+        {
+            Position = 0
+        };
+
+        return stream;
+    }
+
 
     //public virtual void SaveToFile(string filePath) {
     //    var text = ToText();

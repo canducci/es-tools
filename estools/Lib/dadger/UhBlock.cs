@@ -33,11 +33,11 @@ partial class Dadger
             new BaseField( 50 , 59,"F10.0"    , "Volume Morto Ini"),
             new BaseField( 60 , 69,"F10.0"    , "Limite Vertimento"),
             new BaseField( 70 , 70,"I1"    , "Bal Hidr Patamar"),
-
+            new BaseField( 72 , 73,"A2"    , "NW"),
         };
 
         public override BaseField[] Campos { get { return UhCampos; } }
-        public double VolIniPerc { get { return this[3] == null ? 0d : (double)this[3]; } set { this[3] = value; } }
+        public double? VolIniPerc { get { return this[3] == null ? null : (double)this[3]; } set { this[3] = value; } }
         public int Usina { get { return (int)this[1]; } set { this[1] = value; } }
         public int Sistema { get { return (int)this[2]; } set { this[2] = value; } }
 

@@ -27,8 +27,8 @@ public partial class Dadger : BaseDocument
                 {"PQ"               , new DummyBlock()},
 
                 {"RI"               , new DummyBlock()},
-                {"VL"               , new DummyBlock()},
-                {"VU"               , new DummyBlock()},
+
+                
 
                 {"IT"               , new DummyBlock()},
                 {"IA"               , new DummyBlock()},
@@ -79,6 +79,13 @@ public partial class Dadger : BaseDocument
                 {"HV LV CV"         , new RhvBlock()},
                 {"HQ LQ CQ"         , new DummyBlock()},
 
+                {"CX"               , new DummyBlock()},
+                {"VL VU VA"               , new DummyBlock()},
+
+                {"AR"               , new DummyBlock()},
+                {"EV"               , new DummyBlock()},
+                {"FA"               , new DummyBlock()},
+
                 {"HE CM"            , new DummyBlock()},
 
                 {"DA"               , new DummyBlock()},
@@ -87,8 +94,7 @@ public partial class Dadger : BaseDocument
                 {"RT"               , new DummyBlock()},
                 {"SA"               , new DummyBlock()},
 
-                {"AR"               , new DummyBlock()},
-                {"EV"               , new DummyBlock()},
+                
                 {"FJ"               , new DummyBlock()},
 
             };

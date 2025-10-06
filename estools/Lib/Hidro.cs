@@ -126,12 +126,6 @@ namespace Estools
                 setUHBlock = SetUHBlock;
             }
 
-
-            //var reserv = new Compass.Services.Reservatorio((Dadger)doc, (Compass.CommomLibrary.HidrDat.HidrDat)hidr);
-
-
-
-
             if (info.Restricoes.Count() > 0)
             {
                 configH.CarregarRestricoes(info.Restricoes.Select(x => new Tuple<int, double, double, bool>(x.Id, x.VolMin, x.VolMax, x.Relative)));
@@ -170,8 +164,11 @@ namespace Estools
 
             //atualizar UH
             SetUHBlock(configH, earmMeta, earmMax);
-            //configH.baseDoc.SaveToFile(createBackup: true);
+            
         }
+
+        
+
 
         public static void Reservatorio(IHidro info, ConfigH configH, Dictionary<int, double> reserv)
         {

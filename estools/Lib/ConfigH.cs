@@ -399,7 +399,7 @@ public class ConfigH
         {
             foreach (var uh in baseDadger.BlocoUh)
             {
-                if (reservs.ContainsKey(uh.Usina))
+                if (reservs.ContainsKey(uh.Usina) && uh.VolIniPerc.HasValue)
                 {
                     uh.VolIniPerc = usinas[uh.Usina].GetVolumePorCota(reservs[uh.Usina]);
                 }
@@ -425,8 +425,11 @@ public class ConfigH
         {
             foreach (var uh in baseDadger.BlocoUh)
             {
-                usinas[uh.Usina].VolIni = uh.VolIniPerc * usinas[uh.Usina].VolUtil / 100f;
-                usinas[uh.Usina].InDadger = true;
+                if (uh.VolIniPerc.HasValue)
+                {
+                    usinas[uh.Usina].VolIni = uh.VolIniPerc.Value * usinas[uh.Usina].VolUtil / 100f;
+                    usinas[uh.Usina].InDadger = true;
+                }
                 usinas[uh.Usina].Ree = uh.Sistema;
             }
 
